@@ -15,12 +15,16 @@ ymaps.ready(f1);
 function f1() {
   // 0. Создаем карту, например так:
   var map,
-    regionName = "Краснодар, Западный округ",
+    regionN = "Краснодар, Западный округ",
+    regionNN = "Нижний Новгород",
     centerP = [38.943216, 45.033266],
     zoomP = 11;
+  xyswap(centerP);
+
+  var center0 = [0,0];
 
   map = new ymaps.Map('ymap', {
-      center: centerP,
+      center: center0,
       zoom: zoomP,
       //type: null,
       controls: ['zoomControl']
@@ -31,31 +35,67 @@ function f1() {
   );
   map.controls.get('zoomControl').options.set({size: 'small'});
 
-  // 1. Запрашиваем через геокодер район (у Яндекса этой возможности пока нет, придется пользоваться OSM)
+  regPolygon(regionNN, map);
+  //regPolygon("Нижний Новгород", map);
+
+  //
+
+}
+
+function regPolygon(name, map)
+{
   var url = "http://nominatim.openstreetmap.org/search";
-  $.getJSON(url, {q: regionName, format: "json", polygon_geojson: 1})
+  $.getJSON(url, {q: name, format: "json", polygon_geojson: 1})
     .then(function (data) {
       $.each(data, function(ix, place) {
         if ("relation" == place.osm_type) {
           // 2. Создаем полигон с нужными координатами
+          var cpoint = coordinateswap(place.geojson.coordinates);
           var p = new ymaps.Polygon(place.geojson.coordinates);
           // 3. Добавляем полигон на карту
           map.geoObjects.add(p);
+          //
+          map.panTo(cpoint);
         }
       });
     }, function (err) {
       console.log(err);
     });
 }
-
 /**
- * Меняет местами координаты в массивах
+ * Меняет местами координаты в массивах и вычисляет точку центра
  * @param coordinates
  */
-function xyswap(coordinates)
+function coordinateswap(coordinates)
 {
-
+  var cpoint = [0,0]; // центр
+  var cnt = 0;
+  coordinates.forEach(function(item, i, arr) {
+    // console.log( i + ": " + item + " (массив:" + arr + ")" );
+    item.forEach(function(point, j, arr2) {
+      //console.log( i + ": " + item/* + " (массив:" + arr + ")" */);
+      console.log(".");
+      xyswap(point);
+      cpoint[0] += point[0];
+      cpoint[1] += point[1];
+      cnt++;
+    });
+  });
+  if(cnt > 0) {
+    cpoint[0] = cpoint[0]/cnt;
+    cpoint[1] = cpoint[1]/cnt;
+  }
+  return cpoint;
 }
+
+function xyswap(point)
+{
+  let a = point[0];
+  point[0] = point[1];
+  point[1] = a;
+}
+
+
 function init2() {
   // Создадим собственный макет RegionControl.
   var RegionControlLayout = ymaps.templateLayoutFactory.createClass('', {
