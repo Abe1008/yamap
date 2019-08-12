@@ -14,6 +14,8 @@ var Cpoint = [0,0]; // центр
 ymaps.ready(f1);
 var Map1;
 var SelectPolygon = [];
+var colorOn  = '#aa1314';
+var colorOff = '#3f3fa2';
 
 function f1() {
   // 0. Создаем карту, например так:
@@ -40,6 +42,26 @@ function f1() {
   //regPolygon("Нижний Новгород", map);
 
   //
+  Map1.geoObjects.events.add('click', function (e) {
+    //alert('Дошло до коллекции объектов карты');
+    // Получение ссылки на дочерний объект, на котором произошло событие.
+    let obj = e.get('target');
+    let str = '?';
+    if(obj.properties._data.speccode !== undefined) {
+      // есть свойство
+      str = obj.properties._data.speccode;
+      let colr = obj.options.get('fillColor');
+      if(colr == colorOff) {
+        colr = colorOn;
+      } else {
+        colr = colorOff;
+      }
+      // TODO выявить все полигоны с таким же speccode
+      obj.options.set('fillColor', colr);
+    }
+    console.log("Нажал: " + str);
+
+  });
 
 }
 
@@ -80,7 +102,17 @@ function faddPolygon(coords, name)
   let p = new ymaps.Polygon(coords, {
     hintContent: "Многоугольник",
     speccode: name
+  }, {
+    fillColor: colorOff,
+    fillOpacity: 0.4
   });
+  // var color = p.options.get('fillColor');
+  //
+  // p.events.add('click', function (elm) {
+  //   // https://tech.yandex.ru/maps/archive/doc/jsapi/2.0/dg/concepts/events-docpage/
+  //   console.log('нажали ' + name + " " + elm);
+  // });
+
   SelectPolygon.push(p);
   // Добавляем полигон на карту
   Map1.geoObjects.add(p);
