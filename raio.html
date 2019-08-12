@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Выбор региона</title>
+    <title>Выбор отдельного региона</title>
 <!--
         Укажите свой API-ключ. Тестовый ключ НЕ БУДЕТ работать на других сайтах.
         Получить ключ можно в Кабинете разработчика: https://developer.tech.yandex.ru/keys/
@@ -16,7 +16,8 @@
     <script src="js/bootstrap.js"></script>
     <!-- API для localhost -->
     <script src="https://api-maps.yandex.ru/2.1/?mode=debug&lang=ru_RU" type="text/javascript"></script>
-    <!-- &apikey=54ee724a-04ab-4dba-8936-c850c0662c9c&coordorder=longlat -->
+    <!-- &apikey=54ee724a-04ab-4dba-8936-c850c0662c9c -->
+    <!-- &coordorder=longlat -->
     <style>
         html, body, #ymap {
             width: 900px;
@@ -27,6 +28,14 @@
     </style>
 </head>
 <body>
+<ul>
+    <li onclick="regPolygon('Краснодар, Западный округ')">Краснодар, Западный округ</li>
+    <li onclick="regPolygon('Нижний Новгород, Канавинский район')">Нижний Новгород, Канавинский район</li>
+    <li onclick="regPolygon('Нижний Новгород')">Нижний Новгород</li>
+    <li onclick="regPolygon('городской округ Новосибирск')">Новосибирск</li>
+    <li onclick="regPolygon('Москва')">Москва</li>
+</ul>
+
 <div id="ymap">
 </div>
 <script src="raio.js" type="text/javascript"></script>

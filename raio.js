@@ -6,25 +6,26 @@
  https://tech.yandex.ru/maps/jsbox/2.1/regions
 
  */
-optionsTemplate   = '';
+//optionsTemplate   = '';
 var colorSelect   = '#00D000';  // цвет "выбран"
 var colorNoselect = '#680ec4';  // цвет "не выбран"
 var strArg = '?regs=';          // аргумент араметров "регионы"
+var Cpoint = [0,0]; // центр
 ymaps.ready(f1);
+var Map1;
+var SelectPolygon = [];
 
 function f1() {
   // 0. Создаем карту, например так:
   var map,
-    regionN = "Краснодар, Западный округ",
-    regionNN = "Нижний Новгород",
-    centerP = [38.943216, 45.033266],
+    regionK = "Краснодар, Западный округ",
+    regionNN1 = "Нижний Новгород, Канавинский район",
+      regionNN = "Нижний Новгород",
+    centerP = [55.751, 37.618],
     zoomP = 11;
-  xyswap(centerP);
 
-  var center0 = [0,0];
-
-  map = new ymaps.Map('ymap', {
-      center: center0,
+  Map1 = new ymaps.Map('ymap', {
+      center: centerP,
       zoom: zoomP,
       //type: null,
       controls: ['zoomControl']
@@ -33,34 +34,62 @@ function f1() {
     //     restrictMapArea: [[10, 10], [85,-160]]
     // }
   );
-  map.controls.get('zoomControl').options.set({size: 'small'});
+  Map1.controls.get('zoomControl').options.set({size: 'small'});
 
-  regPolygon(regionNN, map);
+  //regPolygon(regionNN1);
   //regPolygon("Нижний Новгород", map);
 
   //
 
 }
 
-function regPolygon(name, map)
+function regPolygon(name)
 {
+  deleteSelectPolygon();
   var url = "http://nominatim.openstreetmap.org/search";
-  $.getJSON(url, {q: name, format: "json", polygon_geojson: 1})
+  $.getJSON(url, {q: name, format: "json", polygon_geojson: 1, polygon_threshold: 0.001})
     .then(function (data) {
       $.each(data, function(ix, place) {
         if ("relation" == place.osm_type) {
           // 2. Создаем полигон с нужными координатами
-          var cpoint = coordinateswap(place.geojson.coordinates);
-          var p = new ymaps.Polygon(place.geojson.coordinates);
-          // 3. Добавляем полигон на карту
-          map.geoObjects.add(p);
+          //var cpoint = coordinateswap(place.geojson.coordinates);
+          let coords = place.geojson.coordinates;
+          if(place.geojson.type == 'MultiPolygon') {
+            let ar1 = place.geojson.coordinates;
+            for(let i=0; i < ar1.length; i++) {
+              // https://noteskeeper.ru/1/
+              coordinateswap(ar1[i]);
+              let p = new ymaps.Polygon(ar1[i]);
+              SelectPolygon.push(p);
+              // Добавляем полигон на карту
+              Map1.geoObjects.add(p);
+              Map1.setCenter(Cpoint);
+            }
+          }
+          if(place.geojson.type == 'Polygon') {
+            let ar1 = place.geojson.coordinates;
+            coordinateswap(ar1);
+            let p = new ymaps.Polygon(ar1);
+            // Добавляем полигон на карту
+            SelectPolygon.push(p);
+            Map1.geoObjects.add(p);
+            Map1.setCenter(Cpoint);
+          }
           //
-          map.panTo(cpoint);
+          //map.panTo(cpoint);
         }
       });
     }, function (err) {
       console.log(err);
     });
+}
+
+function deleteSelectPolygon()
+{
+  for(let i=0; i < SelectPolygon.length; i++) {
+    Map1.geoObjects.remove(SelectPolygon[i]);
+  }
+  SelectPolygon = [];
 }
 /**
  * Меняет местами координаты в массивах и вычисляет точку центра
@@ -68,24 +97,19 @@ function regPolygon(name, map)
  */
 function coordinateswap(coordinates)
 {
-  var cpoint = [0,0]; // центр
-  var cnt = 0;
-  coordinates.forEach(function(item, i, arr) {
-    // console.log( i + ": " + item + " (массив:" + arr + ")" );
-    item.forEach(function(point, j, arr2) {
+  let cnt = 0, x = 0, y = 0;
+  coordinates[0].forEach(function(point, i, arr) {
       //console.log( i + ": " + item/* + " (массив:" + arr + ")" */);
-      console.log(".");
+      //console.log(".");
       xyswap(point);
-      cpoint[0] += point[0];
-      cpoint[1] += point[1];
+      x += point[0];
+      y += point[1];
       cnt++;
-    });
   });
   if(cnt > 0) {
-    cpoint[0] = cpoint[0]/cnt;
-    cpoint[1] = cpoint[1]/cnt;
+    Cpoint[0] = x/cnt;
+    Cpoint[1] = y/cnt;
   }
-  return cpoint;
 }
 
 function xyswap(point)
