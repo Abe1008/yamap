@@ -58,22 +58,12 @@ function regPolygon(name)
             let ar1 = place.geojson.coordinates;
             for(let i=0; i < ar1.length; i++) {
               // https://noteskeeper.ru/1/
-              coordinateswap(ar1[i]);
-              let p = new ymaps.Polygon(ar1[i]);
-              SelectPolygon.push(p);
-              // Добавляем полигон на карту
-              Map1.geoObjects.add(p);
-              Map1.setCenter(Cpoint);
+              faddPolygon(ar1[i], name);
             }
           }
           if(place.geojson.type == 'Polygon') {
             let ar1 = place.geojson.coordinates;
-            coordinateswap(ar1);
-            let p = new ymaps.Polygon(ar1);
-            // Добавляем полигон на карту
-            SelectPolygon.push(p);
-            Map1.geoObjects.add(p);
-            Map1.setCenter(Cpoint);
+            faddPolygon(ar1, name);
           }
           //
           //map.panTo(cpoint);
@@ -82,6 +72,19 @@ function regPolygon(name)
     }, function (err) {
       console.log(err);
     });
+}
+
+function faddPolygon(coords, name)
+{
+  coordinateswap(coords);
+  let p = new ymaps.Polygon(coords, {
+    hintContent: "Многоугольник",
+    speccode: name
+  });
+  SelectPolygon.push(p);
+  // Добавляем полигон на карту
+  Map1.geoObjects.add(p);
+  Map1.setCenter(Cpoint);
 }
 
 function deleteSelectPolygon()
@@ -459,4 +462,10 @@ function iso3166toCod(strIso) {
   // }, {});
   // otv = mic2.get(strIso);
   return otv;
+}
+
+function myclick(element)
+{
+  console.log("click " + element);
+
 }
