@@ -41,9 +41,9 @@ function f1() {
   //
   //Map1.geoObjects.events.add('click', clickOnPolygon);
   //
-  var reglist = document.getElementById('reglist');
-  let str = makeListOktmo('17');
-  reglist.innerHTML = reglist.innerHTML + '<br/>' + str;
+  // var reglist = document.getElementById('reglist');
+  // let str = makeListOktmo('17');
+  // reglist.innerHTML = reglist.innerHTML + '<br/>' + str;
   //
   for(let i=0; i < db_oktmo.length; i++) {
     let value = db_oktmo[i];
