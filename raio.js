@@ -7,23 +7,24 @@
 
  */
 //optionsTemplate   = '';
-var colorSelect   = '#00D000';  // цвет "выбран"
-var colorNoselect = '#680ec4';  // цвет "не выбран"
+//var colorSelect   = '#00D000';  // цвет "выбран"
+//var colorNoselect = '#680ec4';  // цвет "не выбран"
 var strArg = '?regs=';          // аргумент араметров "регионы"
 var Cpoint = [0,0]; // центр
-ymaps.ready(f1);
 var Map1;
 var SelectPolygon = [];
-var colorOn  = '#aa1314';
-var colorOff = '#3f3fa2';
+var colorSelect  = '#aa1314';
+var colorNoselect = '#3f3fa2';
+var strKeyMetka = '0305396879554012335'; // ключевая метка наших регионов, для наших полигонов
+ymaps.ready(f1);
 
 function f1() {
   // 0. Создаем карту, например так:
   var map,
-    regionK = "Краснодар, Западный округ",
-    regionNN1 = "Нижний Новгород, Канавинский район",
+      regionK = "Краснодар, Западный округ",
+      regionNN1 = "Нижний Новгород, Канавинский район",
       regionNN = "Нижний Новгород",
-    centerP = [55.751, 37.618],
+    centerP = [55.751, 37.618], // Москва
     zoomP = 11;
 
   Map1 = new ymaps.Map('ymap', {
@@ -37,73 +38,116 @@ function f1() {
     // }
   );
   Map1.controls.get('zoomControl').options.set({size: 'small'});
-
-  //regPolygon(regionNN1);
-  //regPolygon("Нижний Новгород", map);
-
   //
-  Map1.geoObjects.events.add('click', function (e) {
-    //alert('Дошло до коллекции объектов карты');
-    // Получение ссылки на дочерний объект, на котором произошло событие.
-    let obj = e.get('target');
-    let str = '?';
-    if(obj.properties._data.speccode !== undefined) {
-      // есть свойство
-      str = obj.properties._data.speccode;
-      let colr = obj.options.get('fillColor');
-      if(colr == colorOff) {
-        colr = colorOn;
-      } else {
-        colr = colorOff;
-      }
-      // TODO выявить все полигоны с таким же speccode
-      obj.options.set('fillColor', colr);
+  //Map1.geoObjects.events.add('click', clickOnPolygon);
+  //
+  var reglist = document.getElementById('reglist');
+  let str = makeListOktmo('17');
+  reglist.innerHTML = reglist.innerHTML + '<br/>' + str;
+  //
+  for(let i=0; i < db_oktmo.length; i++) {
+    let value = db_oktmo[i];
+    if((''+value[0]).startsWith('17')) {
+      let kn = value[2];    // краткое имя
+      if(!kn) kn = value[1];  // если нет краткого, то длинное
+      regPolygon(value[1], kn, value[0]);
     }
-    console.log("Нажал: " + str);
-
-  });
+  }
+  console.log("Центр " + Cpoint);
+  Map1.setBounds([[55,38.8],[57,39]]);
 
 }
 
-function regPolygon(name)
+/**
+ * Обработка нажатия мыши над полигоном
+ * @param e
+ */
+function clickOnPolygon(e)
 {
-  deleteSelectPolygon();
+  //alert('Дошло до коллекции объектов карты');
+  // Получение ссылки на дочерний объект, на котором произошло событие.
+  let obj = e.get('target');
+  if(isMyPolygon(obj)) {
+    // есть свойство
+    //let slct = obj.properties._data.myKeySelect;
+    let slct = fisSelect(obj);
+    setSelectRegion(obj, !slct);
+  }
+  var otv = fgetSelectedRegions();
+  var tit = document.title;
+  var pan = document.location.pathname;
+  var uri = pan + otv;
+  window.history.pushState('', tit, uri);
+  window.history.pathname  = uri;
+  //console.log("Нажал: " + otv);
+  var bound = Map1.geoObjects.getBounds();
+  console.log("границы: " + bound);
+}
+/**
+ * Определить - полигон выбран
+ * @param obj полигон
+ * @returns {boolean}
+ */
+function fisSelect(obj)
+{
+  let clr = obj.options.get('fillColor');
+  return clr === colorSelect;
+}
+
+/**
+ * Создать полигоны для региона
+ * @param query запрос к OSM
+ * @param name  название на подсказке
+ * @param idreg код региона
+ */
+function regPolygon(query, name, idreg)
+{
+  //deleteSelectPolygon();
   var url = "http://nominatim.openstreetmap.org/search";
-  $.getJSON(url, {q: name, format: "json", polygon_geojson: 1, polygon_threshold: 0.001})
+  $.getJSON(url, {q: query, format: "json", polygon_geojson: 1, polygon_threshold: 0.001})
     .then(function (data) {
       $.each(data, function(ix, place) {
         if ("relation" == place.osm_type) {
           // 2. Создаем полигон с нужными координатами
           //var cpoint = coordinateswap(place.geojson.coordinates);
-          let coords = place.geojson.coordinates;
+          //let coords = place.geojson.coordinates;
           if(place.geojson.type == 'MultiPolygon') {
             let ar1 = place.geojson.coordinates;
             for(let i=0; i < ar1.length; i++) {
               // https://noteskeeper.ru/1/
-              faddPolygon(ar1[i], name);
+              faddPolygon(ar1[i], name, idreg);
             }
           }
           if(place.geojson.type == 'Polygon') {
             let ar1 = place.geojson.coordinates;
-            faddPolygon(ar1, name);
+            faddPolygon(ar1, name, idreg);
           }
-          //
           //map.panTo(cpoint);
         }
       });
+      //console.log("центр " + Cpoint);
+      Map1.panTo(Cpoint,7);
     }, function (err) {
       console.log(err);
     });
 }
 
-function faddPolygon(coords, name)
+/**
+ * Добавить полигон для региона
+ * @param coords
+ * @param regname
+ * @param idreg
+ */
+function faddPolygon(coords, regname, idreg)
 {
-  coordinateswap(coords);
-  let p = new ymaps.Polygon(coords, {
-    hintContent: "Многоугольник",
-    speccode: name
+  var ncors = coords.slice();
+  coordinateswap(ncors);
+  let p = new ymaps.Polygon(ncors, {
+    hintContent:      regname,      // название региона
+    myKeyIdRegion:    idreg,        // идентификатор региона
+    myKeyMetka:       strKeyMetka,  // ключевая метка для опознания своих полигонов
   }, {
-    fillColor: colorOff,
+    fillColor: colorNoselect,            // цвет и признак, что полигон выбран
     fillOpacity: 0.4
   });
   // var color = p.options.get('fillColor');
@@ -113,19 +157,81 @@ function faddPolygon(coords, name)
   //   console.log('нажали ' + name + " " + elm);
   // });
 
-  SelectPolygon.push(p);
+  //SelectPolygon.push(p);
   // Добавляем полигон на карту
   Map1.geoObjects.add(p);
-  Map1.setCenter(Cpoint);
+  // Map1.setCenter(Cpoint);
+  p.events.add('click', clickOnPolygon);
+  //
+}
+
+/**
+ * Вернуть строку выбранных регионов
+ */
+function fgetSelectedRegions()
+{
+  var mapa = new Map();
+  Map1.geoObjects.each(function (elm) {
+    if(isMyPolygon(elm)) {
+      // проверим выбран полигон ? (окрашен в нужный цвет)
+      if(fisSelect(elm)) {
+        let idreg = elm.properties._data.myKeyIdRegion;  // код региона
+        mapa.set(idreg, 1);
+      }
+    }
+  });
+  var str = '', sep ='';
+  var par = strArg;
+  mapa.forEach(function (value, key, map) {
+    str = par + str + sep + key;
+    sep = ','; par = '';
+  });
+  return str;
+}
+
+/**
+ * Определим: данный объект наш полигон?
+ * @param obj   объект
+ * @returns {boolean}
+ */
+function isMyPolygon(obj) {
+  if (obj.properties._data.myKeyMetka === undefined) return false;
+  if (strKeyMetka === obj.properties._data.myKeyMetka) return true;
+  return false;
+}
+
+/**
+ * установить отобранность и цвет всем полигонам с таким-же регионом
+ * @param obj   объект-полигон
+ * @param slct  выбран/не выбран
+ */
+function  setSelectRegion(obj, slct)
+{
+  if (!isMyPolygon(obj)) return;
+  var colr = slct? colorSelect: colorNoselect;             // цвет регионов
+  var reg  = obj.properties._data.myKeyIdRegion;  // код региона
+  Map1.geoObjects.each(function (elm) {
+    if(isMyPolygon(elm)) {
+      if(elm.properties._data.myKeyIdRegion === reg) {
+        //elm.properties._data.myKeySelect = slct;  // уст. признак выбран
+        elm.options.set('fillColor', colr);       // установить нужный цвет
+      }
+    }
+  });
 }
 
 function deleteSelectPolygon()
 {
-  for(let i=0; i < SelectPolygon.length; i++) {
-    Map1.geoObjects.remove(SelectPolygon[i]);
-  }
-  SelectPolygon = [];
+  Map1.geoObjects.each(function (obj, context) {
+    // определим, что это наш полигон по спец. метке
+  });
+
+  // for(let i=0; i < SelectPolygon.length; i++) {
+  //   Map1.geoObjects.remove(SelectPolygon[i]);
+  // }
+  // SelectPolygon = [];
 }
+
 /**
  * Меняет местами координаты в массивах и вычисляет точку центра
  * @param coordinates
@@ -136,9 +242,10 @@ function coordinateswap(coordinates)
   coordinates[0].forEach(function(point, i, arr) {
       //console.log( i + ": " + item/* + " (массив:" + arr + ")" */);
       //console.log(".");
-      xyswap(point);
-      x += point[0];
-      y += point[1];
+      // поменяем координаты местами
+      let a = point[0]; point[0] = point[1]; point[1] = a;
+      x += 0.0 + point[0];
+      y += 0.0 + point[1];
       cnt++;
   });
   if(cnt > 0) {
@@ -146,14 +253,6 @@ function coordinateswap(coordinates)
     Cpoint[1] = y/cnt;
   }
 }
-
-function xyswap(point)
-{
-  let a = point[0];
-  point[0] = point[1];
-  point[1] = a;
-}
-
 
 function init2() {
   // Создадим собственный макет RegionControl.
@@ -498,6 +597,5 @@ function iso3166toCod(strIso) {
 
 function myclick(element)
 {
-  console.log("click " + element);
-
+  // console.log("click " + element);
 }
