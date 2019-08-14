@@ -9,23 +9,22 @@
 //optionsTemplate   = '';
 //var colorSelect   = '#00D000';  // цвет "выбран"
 //var colorNoselect = '#680ec4';  // цвет "не выбран"
-var strArg = '?regs=';          // аргумент араметров "регионы"
+var strRegs = '?regs=';          // аргумент параметров под-"регионы"
 var Cpoint = [0,0]; // центр
 var Map1;
 var SelectPolygon = [];
 var colorSelect  = '#aa1314';
 var colorNoselect = '#3f3fa2';
-var strKeyMetka = '0305396879554012335'; // ключевая метка наших регионов, для наших полигонов
+var strKeyMetka = '0305396879554012335'; // ключевая метка для наших полигонов
+var Regions = defineRegion();  // определить регионы картирования (2 цифры)
+
 ymaps.ready(f1);
 
 function f1() {
   // 0. Создаем карту, например так:
-  var map,
-      regionK = "Краснодар, Западный округ",
-      regionNN1 = "Нижний Новгород, Канавинский район",
-      regionNN = "Нижний Новгород",
+  var
     centerP = [55.751, 37.618], // Москва
-    zoomP = 11;
+    zoomP = 6;
 
   Map1 = new ymaps.Map('ymap', {
       center: centerP,
@@ -39,21 +38,18 @@ function f1() {
   );
   Map1.controls.get('zoomControl').options.set({size: 'small'});
   //
-  //Map1.geoObjects.events.add('click', clickOnPolygon);
-  //
-  // var reglist = document.getElementById('reglist');
-  // let str = makeListOktmo('17');
-  // reglist.innerHTML = reglist.innerHTML + '<br/>' + str;
-  //
-  listReg('2200000', function(value){
+  // загрузка районов пегиона
+  // код ОКТМО первые 2 знака - главный регион
+  listReg(Regions.substr(0,2), function(value){
     let kn = value[2];    // краткое имя
     if(!kn) kn = value[1];  // если нет краткого, то длинное
     regPolygon(value[1], kn, value[0]);
   });
+  Map1.geoObjects.events.add('click', clickOnPolygon);
+  //Map1.events.add('click', clickOnPolygon);
 
-  console.log("Центр " + Cpoint);
-  Map1.setBounds([[55,38.8],[57,39]]);
-
+  //console.log("Центр " + Cpoint);
+  //Map1.setBounds([[55,38.8],[57,39]]);
 }
 
 /**
@@ -80,6 +76,8 @@ function clickOnPolygon(e)
   //console.log("Нажал: " + otv);
   var bound = Map1.geoObjects.getBounds();
   console.log("границы: " + bound);
+  // https://tech.yandex.ru/maps/jsapi/doc/2.1/dg/concepts/events-docpage/
+  e.stopPropagation();
 }
 /**
  * Определить - полигон выбран
@@ -100,6 +98,7 @@ function fisSelect(obj)
  */
 function regPolygon(query, name, idreg)
 {
+  var p;  // полигон
   //deleteSelectPolygon();
   var url = "http://nominatim.openstreetmap.org/search";
   $.getJSON(url, {q: query, format: "json", polygon_geojson: 1, polygon_threshold: 0.001})
@@ -124,7 +123,8 @@ function regPolygon(query, name, idreg)
         }
       });
       //console.log("центр " + Cpoint);
-      Map1.panTo(Cpoint,7);
+      //Map1.panTo(Cpoint,7);
+      Map1.setCenter(Cpoint);
     }, function (err) {
       console.log(err);
     });
@@ -138,17 +138,19 @@ function regPolygon(query, name, idreg)
  */
 function faddPolygon(coords, regname, idreg)
 {
-  var ncors = coords.slice();
+  let ncors = coords.slice();
   coordinateswap(ncors);
+  // Инициализация цветом выбранных регионов по строке параметров "регионы"
+  // если строка кода региона есть в строке аргументов, то он будет выбранный
+  let colr = (Regions.indexOf(idreg)<0)? colorNoselect: colorSelect;
   let p = new ymaps.Polygon(ncors, {
     hintContent:      regname,      // название региона
     myKeyIdRegion:    idreg,        // идентификатор региона
     myKeyMetka:       strKeyMetka,  // ключевая метка для опознания своих полигонов
   }, {
-    fillColor: colorNoselect,            // цвет и признак, что полигон выбран
-    fillOpacity: 0.4
+    fillColor:        colr,         // цвет и признак, что полигон выбран
+    fillOpacity:      0.4
   });
-  // var color = p.options.get('fillColor');
   //
   // p.events.add('click', function (elm) {
   //   // https://tech.yandex.ru/maps/archive/doc/jsapi/2.0/dg/concepts/events-docpage/
@@ -159,8 +161,7 @@ function faddPolygon(coords, regname, idreg)
   // Добавляем полигон на карту
   Map1.geoObjects.add(p);
   // Map1.setCenter(Cpoint);
-  p.events.add('click', clickOnPolygon);
-  //
+  //p.events.add('click', clickOnPolygon);
 }
 
 /**
@@ -168,7 +169,7 @@ function faddPolygon(coords, regname, idreg)
  */
 function fgetSelectedRegions()
 {
-  var mapa = new Map();
+  let mapa = new Map();
   Map1.geoObjects.each(function (elm) {
     if(isMyPolygon(elm)) {
       // проверим выбран полигон ? (окрашен в нужный цвет)
@@ -178,8 +179,8 @@ function fgetSelectedRegions()
       }
     }
   });
-  var str = '', sep ='';
-  var par = strArg;
+  let str = '', sep ='';
+  let par = strRegs;
   mapa.forEach(function (value, key, map) {
     str = par + str + sep + key;
     sep = ','; par = '';
@@ -193,8 +194,10 @@ function fgetSelectedRegions()
  * @returns {boolean}
  */
 function isMyPolygon(obj) {
-  if (obj.properties._data.myKeyMetka === undefined) return false;
-  if (strKeyMetka === obj.properties._data.myKeyMetka) return true;
+  if('properties' in obj && '_data' in obj.properties) {
+      if(obj.properties._data.myKeyMetka === undefined) return false;
+      if(strKeyMetka === obj.properties._data.myKeyMetka) return true;
+    }
   return false;
 }
 
@@ -420,9 +423,9 @@ function init2() {
  */
 function fcolorRegion(objectId, collection)
 {
-  var object = collection.getById(objectId);
+  let object = collection.getById(objectId);
   if (object && object.options) {
-    var col = object.options.fillColor;
+    let col = object.options.fillColor;
     // console.log("цвет объекта " + col);
     return col;
   }
@@ -437,7 +440,7 @@ function getSelRegs(collection)
 {
   var objs = collection.getAll();
   var n = objs.length;
-  var par = strArg;   // параметр "регионы"
+  var par = strRegs;   // параметр "регионы"
   var otv = '';
   var sep = '';
   for (var i=0; i<n; i++) {
@@ -462,138 +465,25 @@ function getSelRegs(collection)
 }
 
 /**
- * Инициализация цветом выбранных регионов по строке параметров "регионы"
- * @param collection
+ * Определить регион по аргументам, либо по-умолчанию
  */
-function initSelColorRegions(collection)
+function defineRegion()
 {
-  var strs = document.location.search;
-  var ir = strs.indexOf(strArg);  // есть строка с аргументами ?
-  if (ir < 0)
-    return;
-  strs = strs.substr(ir + strArg.length);
-  var regs = strs.split(','); // разбить по запятым в массив
-  var objs = collection.getAll();
-  var n  = objs.length;
-  var nr = regs.length;
-  for (var i=0; i<n; i++) {
-    var reg = objs[i];
-    if(reg && reg.options) {
-      var id = reg.id;    // идентификатор региона
-      for(var j=0; j < nr; j++) {
-        var cod = iso3166toCod(id);
-        if(id === regs[j] || cod == regs[j]) {
-          reg.options.fillColor = colorSelect;
-        }
-      }
+  let i, sr, strs;
+  strs = document.location.search;
+  i = strs.indexOf(strRegs);  // есть строка с аргументами районами-региона?
+  if (i < 0) {
+    // регион явно в аргументах не задан
+    // ищем в html параграф с id = "defaultRegion"
+    let dr = document.getElementById('defaultRegion');
+    if(dr) {
+      sr = dr.innerText;
+    } else {
+      sr = '';
     }
+  } else {
+    // задан регион аргументом ?regs=
+    sr = strs.substr(i + strRegs.length); // регион или список регионов
   }
-}
-
-/**
- * Выдать числовой код региона по гео-коду по ISO3166
- * @param strIso - гео-код по ISO3166
- * @return {any} числовой код
- */
-function iso3166toCod(strIso) {
-  let mic = new Map([
-    ['RU-AD', 1],
-    ['RU-AL', 4],
-    ['RU-BA', 2],
-    ['RU-BU', 3],
-    ['RU-DA', 5],
-    ['RU-IN', 6],
-    ['RU-KB', 7],
-    ['RU-KL', 8],
-    ['RU-KC', 9],
-    ['RU-KR', 10],
-    ['RU-KO', 11],
-    ['RU-CR', 91],
-    ['RU-ME', 12],
-    ['RU-MO', 13],
-    ['RU-SA', 14],
-    ['RU-SE', 15],
-    ['RU-TA', 16],
-    ['RU-TY', 17],
-    ['RU-UD', 18],
-    ['RU-KK', 19],
-    ['RU-CE', 20],
-    ['RU-CU', 21],
-    ['RU-ALT', 22],
-    ['RU-ZAB', 75],
-    ['RU-KAM', 41],
-    ['RU-KDA', 23],
-    ['RU-KYA', 24],
-    ['RU-PER', 59],
-    ['RU-PRI', 25],
-    ['RU-STA', 26],
-    ['RU-KHA', 27],
-    ['RU-AMU', 28],
-    ['RU-ARK', 29],
-    ['RU-AST', 30],
-    ['RU-BEL', 31],
-    ['RU-BRY', 32],
-    ['RU-VLA', 33],
-    ['RU-VGG', 34],
-    ['RU-VLG', 35],
-    ['RU-VOR', 36],
-    ['RU-IVA', 37],
-    ['RU-IRK', 38],
-    ['RU-KGD', 39],
-    ['RU-KLU', 40],
-    ['RU-KEM', 42],
-    ['RU-KIR', 43],
-    ['RU-KOS', 44],
-    ['RU-KGN', 45],
-    ['RU-KRS', 46],
-    ['RU-LEN', 47],
-    ['RU-LIP', 48],
-    ['RU-MAG', 49],
-    ['RU-MOS', 50],
-    ['RU-MUR', 51],
-    ['RU-NIZ', 52],
-    ['RU-NGR', 53],
-    ['RU-NVS', 54],
-    ['RU-OMS', 55],
-    ['RU-ORE', 56],
-    ['RU-ORL', 57],
-    ['RU-PNZ', 58],
-    ['RU-PSK', 60],
-    ['RU-ROS', 61],
-    ['RU-RYA', 62],
-    ['RU-SAM', 63],
-    ['RU-SAR', 64],
-    ['RU-SAK', 65],
-    ['RU-SVE', 66],
-    ['RU-SMO', 67],
-    ['RU-TAM', 68],
-    ['RU-TVE', 69],
-    ['RU-TOM', 70],
-    ['RU-TUL', 71],
-    ['RU-TYU', 72],
-    ['RU-ULY', 73],
-    ['RU-CHE', 74],
-    ['RU-YAR', 76],
-    ['RU-MOW', 77],
-    ['RU-SPE', 78],
-    ['RU-SEV', 92],
-    ['RU-YEV', 79],
-    ['RU-NEN', 83],
-    ['RU-KHM', 86],
-    ['RU-CHU', 87],
-    ['RU-YAN', 89]
-  ]);
-  var otv = mic.get(strIso);
-  // if(otv) return otv;
-  // var mic2 = Object.entries(mic).reduce((reverse, entry) => {
-  //     reverse[entry[1]] = entry[0];
-  //     return reverse;
-  // }, {});
-  // otv = mic2.get(strIso);
-  return otv;
-}
-
-function myclick(element)
-{
-  // console.log("click " + element);
+  return sr.length >= 2? sr: "50"; // XX регион по-умолчанию
 }
