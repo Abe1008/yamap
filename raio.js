@@ -1,4 +1,9 @@
 /*
+ * Copyright (c) 2019. Aleksey Eremin
+ *
+ */
+
+/*
 Выдает гео-коды выбранных регионов согласно ISO3166, ISO3166_2:RU
  https://ru.wikipedia.org/wiki/ISO_3166-2:RU
 
