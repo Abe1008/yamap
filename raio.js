@@ -25,7 +25,7 @@ function f1() {
       regionNN1 = "Нижний Новгород, Канавинский район",
       regionNN = "Нижний Новгород",
     centerP = [55.751, 37.618], // Москва
-    zoomP = 7;
+    zoomP = 11;
 
   Map1 = new ymaps.Map('ymap', {
       center: centerP,
@@ -44,17 +44,15 @@ function f1() {
   // var reglist = document.getElementById('reglist');
   // let str = makeListOktmo('17');
   // reglist.innerHTML = reglist.innerHTML + '<br/>' + str;
-  // //
-  for(let i=0; i < db_oktmo.length; i++) {
-    let value = db_oktmo[i];
-    if((''+value[0]).startsWith('17')) {
-      let kn = value[2];    // краткое имя
-      if(!kn) kn = value[1];  // если нет краткого, то длинное
-      regPolygon(value[1], kn, value[0]);
-    }
-  }
-  // console.log("Центр " + Cpoint);
-  // Map1.setBounds([[55,38.8],[57,39]]);
+  //
+  listReg('2200000', function(value){
+    let kn = value[2];    // краткое имя
+    if(!kn) kn = value[1];  // если нет краткого, то длинное
+    regPolygon(value[1], kn, value[0]);
+  });
+
+  console.log("Центр " + Cpoint);
+  Map1.setBounds([[55,38.8],[57,39]]);
 
 }
 
