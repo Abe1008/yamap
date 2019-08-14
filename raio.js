@@ -17,7 +17,6 @@
 var strRegs = '?regs=';          // аргумент параметров под-"регионы"
 var Cpoint = [0,0]; // центр
 var Map1;
-var SelectPolygon = [];
 var colorSelect  = '#aa1314';
 var colorNoselect = '#3f3fa2';
 var strKeyMetka = '0305396879554012335'; // ключевая метка для наших полигонов
