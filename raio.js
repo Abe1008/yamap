@@ -45,9 +45,7 @@ function f1() {
   // загрузка районов пегиона
   // код ОКТМО первые 2 знака - главный регион
   listReg(Regions.substr(0,2), function(value){
-    let kn = value[2];    // краткое имя
-    if(!kn) kn = value[1];  // если нет краткого, то длинное
-    regPolygon(value[1], kn, value[0]);
+    regPolygon(value[1], value[2], value[0]);
   });
   Map1.geoObjects.events.add('click', clickOnPolygon);
   //Map1.events.add('click', clickOnPolygon);
