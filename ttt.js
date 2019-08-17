@@ -51,6 +51,17 @@ function f1() {
   Map1.geoObjects.events.add('click', clickOnPolygon);
   //Map1.events.add('click', clickOnPolygon);
 
+  // var p1 = Promise.all(promise_regions);
+  // p1.then(function (val) {
+  //   let str = "promise end " + val;
+  //   console.log(str);
+  // });
+  Promise.all(promise_regions).then(values => {
+    console.log(values);
+    Map1.setCenter(Cpoint);
+    promise_regions = [];
+
+  });
   //console.log("Центр " + Cpoint);
   //Map1.setBounds([[55,38.8],[57,39]]);
 }
@@ -123,18 +134,18 @@ function regPolygon(query, name, idreg)
                 let ar1 = place.geojson.coordinates;
                 faddPolygon(ar1, name, idreg);
               }
-              //map.panTo(cpoint);
-              // Promise
-              resolve("добавили полигон");
             }
           });
           //console.log("центр " + Cpoint);
           //Map1.panTo(Cpoint,7);
-          Map1.setCenter(Cpoint);
+          //Map1.setCenter(Cpoint);
+          // Promise
+          resolve("добавили " + idreg);
         }, function (err) {
           console.log(err);
           // Promise
-          reject("ошибка получения кординат");
+          //reject("ошибка получения кординат");
+          resolve("ошибка чтения региона " + idreg);
         });
   });
   // запомним
