@@ -4,24 +4,23 @@
  */
 
 /*
-Выдает гео-коды выбранных регионов согласно ISO3166, ISO3166_2:RU
+ Выдает гео-коды выбранных регионов согласно ОКТМО
+ ISO3166, ISO3166_2:RU
  https://ru.wikipedia.org/wiki/ISO_3166-2:RU
 
  Пример Яндекс-карты
  https://tech.yandex.ru/maps/jsbox/2.1/regions
 
  */
-//optionsTemplate   = '';
-//var colorSelect   = '#00D000';  // цвет "выбран"
-//var colorNoselect = '#680ec4';  // цвет "не выбран"
-var strRegs = '?regs=';          // аргумент параметров под-"регионы"
-var Cpoint = [0,0]; // центр
+var strRegs = '?regs=';           // аргумент параметров под-"регионы"
 var Map1;
 var colorSelect  = '#aa1314';
 var colorNoselect = '#3f3fa2';
 var strKeyMetka = '0305396879554012335'; // ключевая метка для наших полигонов
 var Regions = defineRegion();  // определить регионы картирования (2 цифры)
-
+var promise_regions = []; // массив обещаний
+var MyBounds = [[],[]];    // границы регионов
+//
 ymaps.ready(f1);
 
 function f1() {
@@ -50,8 +49,32 @@ function f1() {
   Map1.geoObjects.events.add('click', clickOnPolygon);
   //Map1.events.add('click', clickOnPolygon);
 
+  // var p1 = Promise.all(promise_regions);
+  // p1.then(function (val) {
+  //   let str = "promise end " + val;
+  //   console.log(str);
+  // });
+  // ждем исполнения всех промисов после загрузки полигонов
+  Promise.all(promise_regions).then(fallpromises);
   //console.log("Центр " + Cpoint);
   //Map1.setBounds([[55,38.8],[57,39]]);
+}
+
+/**
+ * по завершению всех промисов переместить карту на границы
+ * @param values
+ */
+function fallpromises(values)
+{
+  console.log("обещания выполнены " + values.length);
+  //Map1.setCenter(Cpoint);
+  if(MyBounds[0].length >= 2) {
+    Map1.setBounds(MyBounds);
+  } else {
+    console.log("границы не определены");
+  }
+  promise_regions = [];
+  MyBounds = [[],[]];    // границы регионов
 }
 
 /**
@@ -76,8 +99,8 @@ function clickOnPolygon(e)
   window.history.pushState('', tit, uri);
   window.history.pathname  = uri;
   //console.log("Нажал: " + otv);
-  var bound = Map1.geoObjects.getBounds();
-  console.log("границы: " + bound);
+  // var bound = Map1.geoObjects.getBounds();
+  // console.log("границы: " + bound);
   // https://tech.yandex.ru/maps/jsapi/doc/2.1/dg/concepts/events-docpage/
   e.stopPropagation();
 }
@@ -101,35 +124,43 @@ function fisSelect(obj)
 function regPolygon(query, name, idreg)
 {
   var p;  // полигон
-  //deleteSelectPolygon();
-  var url = "http://nominatim.openstreetmap.org/search";
-  $.getJSON(url, {q: query, format: "json", polygon_geojson: 1, polygon_threshold: 0.001})
-    .then(function (data) {
-      $.each(data, function(ix, place) {
-        if ("relation" == place.osm_type) {
-          // 2. Создаем полигон с нужными координатами
-          //var cpoint = coordinateswap(place.geojson.coordinates);
-          //let coords = place.geojson.coordinates;
-          if(place.geojson.type == 'MultiPolygon') {
-            let ar1 = place.geojson.coordinates;
-            for(let i=0; i < ar1.length; i++) {
-              // https://noteskeeper.ru/1/
-              faddPolygon(ar1[i], name, idreg);
+  // будем ждать "обещания, что нарисуется полигон"
+  let promise_reg = new Promise(function (resolve, reject) {
+    let url = "http://nominatim.openstreetmap.org/search";
+    $.getJSON(url, {q: query, format: "json", polygon_geojson: 1, polygon_threshold: 0.001})
+        .then(function (data) {
+          $.each(data, function (ix, place) {
+            if ("relation" == place.osm_type) {
+              // 2. Создаем полигон с нужными координатами
+              //var cpoint = coordinateswap(place.geojson.coordinates);
+              //let coords = place.geojson.coordinates;
+              if (place.geojson.type == 'MultiPolygon') {
+                let ar1 = place.geojson.coordinates;
+                for (let i = 0; i < ar1.length; i++) {
+                  // https://noteskeeper.ru/1/
+                  faddPolygon(ar1[i], name, idreg);
+                }
+              }
+              if (place.geojson.type === 'Polygon') {
+                let ar1 = place.geojson.coordinates;
+                faddPolygon(ar1, name, idreg);
+              }
             }
-          }
-          if(place.geojson.type == 'Polygon') {
-            let ar1 = place.geojson.coordinates;
-            faddPolygon(ar1, name, idreg);
-          }
-          //map.panTo(cpoint);
-        }
-      });
-      //console.log("центр " + Cpoint);
-      //Map1.panTo(Cpoint,7);
-      Map1.setCenter(Cpoint);
-    }, function (err) {
-      console.log(err);
-    });
+          });
+          //console.log("центр " + Cpoint);
+          //Map1.panTo(Cpoint,7);
+          //Map1.setCenter(Cpoint);
+          // Promise
+          resolve("добавили " + idreg);
+        }, function (err) {
+          console.log(err);
+          // Promise
+          //reject("ошибка получения кординат");
+          resolve("ошибка чтения региона " + idreg);
+        });
+  });
+  // запомним
+  promise_regions.push(promise_reg);
 }
 
 /**
@@ -153,16 +184,8 @@ function faddPolygon(coords, regname, idreg)
     fillColor:        colr,         // цвет и признак, что полигон выбран
     fillOpacity:      0.4
   });
-  //
-  // p.events.add('click', function (elm) {
-  //   // https://tech.yandex.ru/maps/archive/doc/jsapi/2.0/dg/concepts/events-docpage/
-  //   console.log('нажали ' + name + " " + elm);
-  // });
-
-  //SelectPolygon.push(p);
   // Добавляем полигон на карту
   Map1.geoObjects.add(p);
-  // Map1.setCenter(Cpoint);
   //p.events.add('click', clickOnPolygon);
 }
 
@@ -223,38 +246,35 @@ function  setSelectRegion(obj, slct)
   });
 }
 
-function deleteSelectPolygon()
-{
-  Map1.geoObjects.each(function (obj, context) {
-    // определим, что это наш полигон по спец. метке
-  });
-
-  // for(let i=0; i < SelectPolygon.length; i++) {
-  //   Map1.geoObjects.remove(SelectPolygon[i]);
-  // }
-  // SelectPolygon = [];
-}
-
 /**
- * Меняет местами координаты в массивах и вычисляет точку центра
+ * Меняет местами координаты в массивах, вычисляет границы
  * @param coordinates
  */
 function coordinateswap(coordinates)
 {
-  let cnt = 0, x = 0, y = 0;
+  //let cnt = 0, x = 0, y = 0;
   coordinates[0].forEach(function(point, i, arr) {
-      //console.log( i + ": " + item/* + " (массив:" + arr + ")" */);
-      //console.log(".");
-      // поменяем координаты местами
-      let a = point[0]; point[0] = point[1]; point[1] = a;
-      x += 0.0 + point[0];
-      y += 0.0 + point[1];
-      cnt++;
+    //console.log( i + ": " + item/* + " (массив:" + arr + ")" */);
+    //console.log(".");
+    // поменяем координаты местами
+    let a = point[0];
+    point[0] = point[1];
+    point[1] = a;
+    if (MyBounds[0].length < 2) {
+      MyBounds[0][0] = MyBounds[1][0] = point[0];
+      MyBounds[0][1] = MyBounds[1][1] = point[1];
+    } else {
+      MyBounds[0][0] = Math.min(point[0], MyBounds[0][0]);
+      MyBounds[0][1] = Math.min(point[1], MyBounds[0][1]);
+      MyBounds[1][0] = Math.max(point[0], MyBounds[1][0]);
+      MyBounds[1][1] = Math.max(point[1], MyBounds[1][1]);
+    }
+    //cnt++;
   });
-  if(cnt > 0) {
-    Cpoint[0] = x/cnt;
-    Cpoint[1] = y/cnt;
-  }
+  // if(cnt > 0) {
+  //   Cpoint[0] = (MyBounds[0][0] + MyBounds[1][0])/2;
+  //   Cpoint[1] = (MyBounds[0][1] + MyBounds[1][1])/2;
+  // }
 }
 
 function init2() {
