@@ -1,4 +1,7 @@
-/*
+/*                         
+17.09.2019 10:35
+20.09.2019 14:41
+
 Выдает гео-коды выбранных регионов согласно ISO3166, ISO3166_2:RU
  https://ru.wikipedia.org/wiki/ISO_3166-2:RU
 
@@ -6,90 +9,59 @@
  https://tech.yandex.ru/maps/jsbox/2.1/regions
 
  */
-var REGIONS_DATA = {
-        region: {
-            title: 'Регион',
-            items: [{
-                id: '001',
-                title: 'Страны мира'
-            }, {
-                id: 'BY',
-                title: 'Беларусь'
-            }, {
-                id: 'KZ',
-                title: 'Казахстан'
-            }, {
-                id: 'RU',
-                title: 'Россия'
-            }, {
-                id: 'TR',
-                title: 'Турция'
-            }, {
-                id: 'UA',
-                title: 'Украина'
-            }]
-        },
-        lang: {
-            title: 'Язык',
-            items: [{
-                id: 'en',
-                title: 'Английский'
-            }, {
-                id: 'ru',
-                title: 'Русский'
-            }]
-        },
-        quality: {
-            title: 'Точность границ',
-            items: [{
-                id: '0',
-                title: '0'
-            }, {
-                id: '1',
-                title: '1'
-            }, {
-                id: '2',
-                title: '2'
-            }, {
-                id: '3',
-                title: '3'
-            }]
-        }
-    },
-    // Шаблон html-содержимого макета.
-    // optionsTemplate = [
-    //     '<div style="line-height: 34px;" id="regions-params">',
-    //     '{% for paramName, param in data.params %}',
-    //     '{% for key, value in state.values %}',
-    //     '{% if key == paramName %}',
-    //     '<div class="btn-group btn-group-xs">',
-    //     '<button{% if state.enabled %}{% else %} disabled{% endif %} type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">',
-    //     '<span>{{ param.title }}</span>',
-    //     '<span class="value">: {{ value }}</span>',
-    //     '&nbsp;<span class="caret"></span>',
-    //     '</button>',
-    //     '<ul class="dropdown-menu {{ paramName }}">',
-    //     '{% for item in param.items %}',
-    //     '<li{% if item.id == value %} class="active"{% endif %}>',
-    //     '<a id="regions" href="#" data-param="{{ paramName }}" data-id="{{ item.id }}">',
-    //     '{{ item.title }}',
-    //     '</a>',
-    //     '</li>',
-    //     '{% endfor %}',
-    //     '</ul>',
-    //     '</div>&nbsp;',
-    //     '{% endif %}',
-    //     '{% endfor %}',
-    //     '{% endfor %}',
-    //     '</div>'
-    // ].join('');
+
 optionsTemplate = '';
 var colorSelect   = '#00D000';  // цвет "выбран"
 var colorNoselect = '#680ec4';  // цвет "не выбран"
 var strArg = '?regs=';          // аргумент араметров "регионы"
+var map = null;
+var regCollection = null;
 ymaps.ready(init);
 
+var cnt =0 ;
+// Drupal.behaviors.d7ToJsBehavior = {
+//   attach: function (context, settings) {
+//     // From PHP
+//     var phpObj = Drupal.settings.myArray; // Ассоциативный массив приходит в виде объекта
+//     var phpStr; // = JSON.stringify(phpObj); // Преобразование объекта в строку
+//         phpStr = phpObj[0];
+//         //phpStr = phpStr.slice(1, -1); // Убрал {} из текстовой
+//     initSelColorRegions(phpStr);
+//  }
+
+
+function mmm()
+{
+    console.log("нажал!" + cnt++);
+    // initSelColorRegions("RU-BU,RU-TY");
+    if(regCollection == null) return;
+    var objs = regCollection.getAll();
+    var n  = objs.length;
+    for (var l=0; l<n; l++) {
+        var reg = objs[l];
+        console.log(reg);
+        console.log(reg.id);
+        var cordarr = reg.geometry.coordinates;
+        var i;
+        for(i=0; i <cordarr.length; i++) {
+            console.log("array : " + i);
+            var j;
+            var arr = cordarr[i];
+            for(j=0; j<arr.length; j++) {
+                var point = arr[j];
+                console.log("point " + point[0] +  ", " + point[1]);
+            }
+
+
+        }
+    }
+
+}
+
 function init() {
+
+    if(null != map)
+        return;
     // Создадим собственный макет RegionControl.
     var RegionControlLayout = ymaps.templateLayoutFactory.createClass(optionsTemplate, {
             build: function () {
@@ -195,7 +167,8 @@ function init() {
                 );
                 //
                 // раскрасим выделенные регионы
-                initSelColorRegions(this.regions.objects);
+                regCollection = this.regions.objects;
+                initSelColorRegions(null);
             },
 
             loadRegions: function (params) {
@@ -209,11 +182,10 @@ function init() {
 
     // пример
     // https://tech.yandex.ru/maps/jsbox/2.1/regions_districts
-    // .
 
-    var map = new ymaps.Map('map', {
+    map = new ymaps.Map('map', {
         center: [65, 100],
-        zoom: 2,
+        zoom: 3,
         //type: null,
         controls: ['zoomControl']
     },{
@@ -230,9 +202,6 @@ function init() {
                     lang: 'ru',
                     quality: '2'
                 }
-            } ,
-            data: {
-                 params: REGIONS_DATA
             }
             ,
             options: {
@@ -240,18 +209,10 @@ function init() {
             }
             // ,
             // float: 'left',
-            // maxWidth: [1200]
         });
 
     // Добавим контрол на карту.
     map.controls.add(regionControl);
-/*
-    // Узнавать о изменениях параметров RegionControl можно следующим образом.
-     regionControl.events.add('statechange', function (e) {
-         console.log(e.get('target').get('values'));
-     });
-*/
-
 }
 
 /**
@@ -292,6 +253,7 @@ function getSelRegs(collection)
                 // коды по ISO3166
                 otv = par + otv + sep + reg.id;
                 par = '';  sep = ',';
+                //point_array_out[i]=reg.id;
             }
         }
     }
@@ -300,36 +262,64 @@ function getSelRegs(collection)
     var uri = pan + otv;
     window.history.pushState('', tit, uri);
     window.history.pathname  = uri;
-    console.log(otv);
+    console.log("otvet " + otv);
+
 }
 
 /**
  * Инициализация цветом выбранных регионов по строке параметров "регионы"
- * @param collection
+ * @param spisok
  */
-function initSelColorRegions(collection)
+function initSelColorRegions(spisok)
 {
-    var strs = document.location.search;
-    var ir = strs.indexOf(strArg);  // есть строка с аргументами ?
-    if (ir < 0)
+    // regCollection - коллекция регионов полигонов
+    if(regCollection == null)
+      return;
+    
+    var strs, ir;
+    if(spisok == null) {
+      strs = document.location.search;
+      ir = strs.indexOf(strArg);  // есть строка с аргументами ?
+      if (ir < 0)
         return;
-    strs = strs.substr(ir + strArg.length);
-    var regs = strs.split(','); // разбить по запятым в массив
-    var objs = collection.getAll();
+      strs = strs.substr(ir + strArg.length); //
+    } else {
+      strs = spisok + "";
+    }
+    var ss = strs.split(','); // разбить по запятым в массив
+    var objs = regCollection.getAll();
     var n  = objs.length;
-    var nr = regs.length;
+    var nr = ss.length;
     for (var i=0; i<n; i++) {
         var reg = objs[i];
         if(reg && reg.options) {
             var id = reg.id;    // идентификатор региона
+            var col1 = reg.options.fillColor;
+            var coln, colorNew;
             for(var j=0; j < nr; j++) {
                 var cod = iso3166toCod(id);
-                if(id === regs[j] || cod == regs[j]) {
-                    reg.options.fillColor = colorSelect;
+                // reg.options.fillColor = (id === regs[j] || cod == regs[j])? colorSelect: colorNoselect;
+                if(id === ss[j] || cod == ss[j]) {
+                    colorNew = colorSelect;
+                    break;
+                } else {
+                    colorNew = colorNoselect;
                 }
+
+            }
+            if(col1 !== colorNew) {
+                regCollection.setObjectOptions(id,
+                    {strokeWidth: 2, fillColor: colorNew}
+                );
+                getSelRegs(regCollection);
+                //
+                coln = reg.options.fillColor;
+                console.log("old " + col1 + " mewcol " + coln);
             }
         }
     }
+
+
 }
 
 /**
@@ -434,3 +424,4 @@ function iso3166toCod(strIso) {
     // otv = mic2.get(strIso);
     return otv;
 }
+
